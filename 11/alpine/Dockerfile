@@ -30,7 +30,17 @@ ARG gid=1000
 
 RUN addgroup -g ${gid} ${group}
 RUN adduser -h /home/${user} -u ${uid} -G ${group} -D ${user}
-LABEL Description="This is a base image, which provides the Jenkins agent executable (slave.jar)" Vendor="Jenkins project" Version="${VERSION}"
+
+# metadata labels
+LABEL \
+    org.label-schema.schema-version="1.0" \
+    org.label-schema.vendor="Jenkins project" \
+    org.label-schema.name="Official Jenkins Docker image" \
+    org.label-schema.description="This is a base image, which provides the Jenkins agent executable (agent.jar)" \
+    org.label-schema.version="${VERSION}" \
+    org.label-schema.url="https://jenkins.io/" \
+    org.label-schema.vcs-url="https://github.com/jenkinsci/docker-agent" \
+    org.label-schema.license="MIT"
 
 ARG AGENT_WORKDIR=/home/${user}/agent
 
