@@ -20,30 +20,56 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #  THE SOFTWARE.
 
-FROM adoptopenjdk/openjdk11:alpine
+FROM adoptopenjdk/openjdk11:jdk-11.0.11_9-alpine-slim
 
 ARG VERSION=4.7
 ARG user=jenkins
 ARG group=jenkins
 ARG uid=1000
 ARG gid=1000
+ARG JENKINS_REMOTING_BASE_URL="https://repo.jenkins-ci.org/public/org/jenkins-ci/main/remoting"
 
-RUN addgroup -g ${gid} ${group}
-RUN adduser -h /home/${user} -u ${uid} -G ${group} -D ${user}
-LABEL Description="This is a base image, which provides the Jenkins agent executable (slave.jar)" Vendor="Jenkins project" Version="${VERSION}"
+# Hadolint #DL3018 
+ARG CURL_VER=7.76.1-r0	
+ARG BASH_VER=5.1.0-r0
+ARG GIT_VER=2.30.2-r0
+ARG GIT_LFS_VER=2.13.1-r0
+ARG OPENSSH_CLIENT_VER=8.4_p1-r3
+ARG OPENSSL_VER=1.1.1k-r0
+ARG PROCPS_VER=3.3.16-r0
+
+LABEL description="This is a base image, which provides the Jenkins agent executable (agent.jar)"
+LABEL vendor="Jenkins project"
+LABEL version="${VERSION}"
 
 ARG AGENT_WORKDIR=/home/${user}/agent
 
-RUN apk add --update --no-cache curl bash git git-lfs openssh-client openssl procps \
-  && curl --create-dirs -fsSLo /usr/share/jenkins/agent.jar https://repo.jenkins-ci.org/public/org/jenkins-ci/main/remoting/${VERSION}/remoting-${VERSION}.jar \
-  && chmod 755 /usr/share/jenkins \
-  && chmod 644 /usr/share/jenkins/agent.jar \
-  && ln -sf /usr/share/jenkins/agent.jar /usr/share/jenkins/slave.jar \
-  && apk del curl
+RUN addgroup -g ${gid} ${group} && \
+    adduser -h /home/${user} -u ${uid} -G ${group} -D ${user} && \
+    apk add --no-cache --virtual curl-temporary \
+      curl=${CURL_VER} && \
+    apk add --no-cache \
+      bash=${BASH_VER} \
+      git=${GIT_VER} \
+      git-lfs=${GIT_LFS_VER} \
+      openssh-client=${OPENSSH_CLIENT_VER} \
+      openssl=${OPENSSL_VER} \
+      procps=${PROCPS_VER} && \
+    curl --create-dirs -fsSLo /usr/share/jenkins/agent.jar \
+      ${JENKINS_REMOTING_BASE_URL}/${VERSION}/remoting-${VERSION}.jar && \
+    chmod 755 /usr/share/jenkins && \
+    chmod 644 /usr/share/jenkins/agent.jar && \
+    ln -sf /usr/share/jenkins/agent.jar /usr/share/jenkins/slave.jar && \
+    apk del curl-temporary
+
 USER ${user}
+
 ENV AGENT_WORKDIR=${AGENT_WORKDIR}
-RUN mkdir /home/${user}/.jenkins && mkdir -p ${AGENT_WORKDIR}
+
+RUN mkdir /home/${user}/.jenkins && \
+    mkdir -p ${AGENT_WORKDIR}
 
 VOLUME /home/${user}/.jenkins
 VOLUME ${AGENT_WORKDIR}
+
 WORKDIR /home/${user}

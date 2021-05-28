@@ -20,7 +20,7 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #  THE SOFTWARE.
 
-FROM openjdk:8-jdk-buster
+FROM adoptopenjdk/openjdk8:jdk8u292-b10-debianslim-slim
 
 ARG VERSION=4.7
 ARG user=jenkins
@@ -28,22 +28,37 @@ ARG group=jenkins
 ARG uid=1000
 ARG gid=1000
 
-RUN groupadd -g ${gid} ${group}
-RUN useradd -c "Jenkins user" -d /home/${user} -u ${uid} -g ${gid} -m ${user}
-LABEL Description="This is a base image, which provides the Jenkins agent executable (agent.jar)" Vendor="Jenkins project" Version="${VERSION}"
+# Hadolint #DL3018 
+ARG GIT_LFS_VER=2.7.*
+ARG JENKINS_REMOTING_BASE_URL="https://repo.jenkins-ci.org/public/org/jenkins-ci/main/remoting"
+
+LABEL description="This is a base image, which provides the Jenkins agent executable (agent.jar)"
+LABEL vendor="Jenkins project"
+LABEL version="${VERSION}"
 
 ARG AGENT_WORKDIR=/home/${user}/agent
 
-RUN apt-get update && apt-get install git-lfs && rm -rf /var/lib/apt/lists/*
-RUN curl --create-dirs -fsSLo /usr/share/jenkins/agent.jar https://repo.jenkins-ci.org/public/org/jenkins-ci/main/remoting/${VERSION}/remoting-${VERSION}.jar \
-  && chmod 755 /usr/share/jenkins \
-  && chmod 644 /usr/share/jenkins/agent.jar \
-  && ln -sf /usr/share/jenkins/agent.jar /usr/share/jenkins/slave.jar
+RUN groupadd -g ${gid} ${group} && \
+    useradd -l -c "Jenkins user" -d /home/${user} -u ${uid} -g ${gid} -m ${user} && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+      git-lfs=${GIT_LFS_VER} && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    curl --create-dirs -fsSLo /usr/share/jenkins/agent.jar \
+      ${JENKINS_REMOTING_BASE_URL}/${VERSION}/remoting-${VERSION}.jar && \
+    chmod 755 /usr/share/jenkins && \
+    chmod 644 /usr/share/jenkins/agent.jar && \
+    ln -sf /usr/share/jenkins/agent.jar /usr/share/jenkins/slave.jar
 
 USER ${user}
+
 ENV AGENT_WORKDIR=${AGENT_WORKDIR}
-RUN mkdir /home/${user}/.jenkins && mkdir -p ${AGENT_WORKDIR}
+
+RUN mkdir /home/${user}/.jenkins && \
+    mkdir -p ${AGENT_WORKDIR}
 
 VOLUME /home/${user}/.jenkins
 VOLUME ${AGENT_WORKDIR}
+
 WORKDIR /home/${user}
